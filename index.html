@@ -450,9 +450,9 @@ async function analyzeAndSaveInitialData(imageFile, dateStr, storeName) {
   なす・パプリカ・ピーマン・ズッキーニ（果菜類）: 7日
   きゅうり・トマト: 4日
   きのこ類（しめじ・えのき・しいたけ等）: 7日
-  キャベツ・白菜: 14日  にんじん・大根: 10日  じゃがいも: 14日  たまねぎ: 30日  しょうが: 14日
+  キャベツ・白菜: 14日  にんじん・大根: 14日  じゃがいも: 14日  たまねぎ: 30日  しょうが: 14日
   鶏・豚・牛肉（生）: 2日  ひき肉: 1日  魚（切り身）: 2日  エビ・イカ: 2日
-  卵: 14日  豆腐: 3日  牛乳: 5日  バナナ・いちご: 3日  りんご・梨: 7日
+  卵: 10日  豆腐: 3日  牛乳: 5日  バナナ・いちご: 3日  りんご・梨: 7日
 写真に写っていない食材は含めないこと。日持ちは安全優先で短めに。`;
 
   const res = await fetch(
@@ -476,7 +476,8 @@ async function analyzeAndSaveInitialData(imageFile, dateStr, storeName) {
   const db = loadDB();
   if (!db[recordKey]) db[recordKey] = {image_thumbnail:null, ingredients:[]};
   db[recordKey].image_thumbnail = thumbnail;
-  db[recordKey].ingredients = parsed.ingredients.map(i => {
+  // 既存の食材データを保持しつつ、新たに認識した食材を追加する（上書きしない）
+  const newIngredients = parsed.ingredients.map(i => {
     const qty = Math.max(1, i.quantity || 1);
     const cut = !!i.is_cut;
     return {
@@ -489,6 +490,13 @@ async function analyzeAndSaveInitialData(imageFile, dateStr, storeName) {
       status:        'available',
     };
   });
+  // 既存データに同名食材がなければ追加（重複を避けるため名前で照合）
+  for (const newIng of newIngredients) {
+    const exists = db[recordKey].ingredients.some(existing => existing.name === newIng.name);
+    if (!exists) {
+      db[recordKey].ingredients.push(newIng);
+    }
+  }
   saveDB(db);
   return db[recordKey];
 }
@@ -653,7 +661,7 @@ const LIFESPAN_DB = [
   {name:/ブロッコリー|カリフラワー|アスパラ/i,                                                      fridge:3, category:'vegetable'},
   {name:/もやし|豆苗/i,                                                                             fridge:2, category:'vegetable'},
   {name:/キャベツ|白菜/i,                                                                           fridge:14,category:'vegetable'},
-  {name:/にんじん|人参|大根|ごぼう/i,                                                               fridge:10,category:'vegetable'},
+  {name:/にんじん|人参|大根|ごぼう/i,                                                               fridge:14,category:'vegetable'},
   {name:/かぼちゃ|南瓜/i,                                                                           fridge:7, category:'vegetable'},
   {name:/じゃがいも|ジャガイモ|さつまいも|里芋|長芋|ながいも/i,                                    fridge:14,category:'vegetable'},
   {name:/たまねぎ|玉ねぎ|玉葱/i,                                                                   fridge:30,category:'vegetable'},
@@ -669,7 +677,7 @@ const LIFESPAN_DB = [
   {name:/みかん|オレンジ|グレープフルーツ|レモン|ライム|ゆず/i,                                    fridge:14,category:'fruit'},
   {name:/アボカド/i,                                                                                fridge:4, category:'fruit'},
   {name:/マンゴー|パイナップル|パイン/i,                                                           fridge:4, category:'fruit'},
-  {name:/卵|たまご|玉子/i,                                                                         fridge:14,category:'other'},
+  {name:/卵|たまご|玉子/i,                                                                         fridge:10,category:'other'},
   {name:/豆腐|とうふ|厚揚げ|油揚げ/i,                                                              fridge:3, category:'other'},
   {name:/納豆/i,                                                                                   fridge:7, category:'other'},
   {name:/牛乳|ぎゅうにゅう|豆乳/i,                                                                fridge:5, category:'other'},
