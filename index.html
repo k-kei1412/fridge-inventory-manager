@@ -99,7 +99,7 @@
 
     .card-thumb { width:54px;height:54px;border-radius:10px;object-fit:cover;flex-shrink:0; }
     .card-thumb-ph { width:54px;height:54px;border-radius:10px;background:var(--bg);
-      display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0; }
+      display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0; }
 
     .card-info { flex:1;min-width:0; }
     .card-name-row { display:flex;align-items:center;gap:4px; }
@@ -670,6 +670,84 @@ const LIFESPAN_DB = [
   {name:/こんにゃく|蒟蒻|しらたき/i,                                                              fridge:7, category:'other'},
 ];
 
+// ── 食材名→絵文字マップ ──────────────────────────────────────
+const EMOJI_MAP = [
+  // 肉類
+  { name: /ひき肉|挽き肉|挽肉|ミンチ/i,                   emoji: '🫙' },
+  { name: /鶏|とり肉|チキン|ささみ|手羽|砂肝/i,           emoji: '🍗' },
+  { name: /豚|ぶた肉|ポーク|豚バラ|豚ロース/i,            emoji: '🥩' },
+  { name: /牛|ぎゅう肉|ビーフ|すき焼き/i,                 emoji: '🥩' },
+  { name: /ハム|ベーコン|ウインナー|ソーセージ/i,          emoji: '🥓' },
+  { name: /レバー|砂肝/i,                                  emoji: '🍖' },
+  // 魚介
+  { name: /刺身|さしみ/i,                                  emoji: '🍣' },
+  { name: /エビ|えび|海老/i,                               emoji: '🦐' },
+  { name: /イカ|いか/i,                                    emoji: '🦑' },
+  { name: /タコ|たこ/i,                                    emoji: '🐙' },
+  { name: /牡蠣|カキ|ホタテ|アサリ|ハマグリ|貝/i,         emoji: '🦪' },
+  { name: /鮭|サーモン/i,                                  emoji: '🐟' },
+  { name: /マグロ|ツナ/i,                                  emoji: '🐟' },
+  { name: /かまぼこ|ちくわ|はんぺん/i,                    emoji: '🍢' },
+  { name: /魚|さかな|鯖|鱈|鯛|ブリ|アジ|イワシ|サンマ/i,  emoji: '🐟' },
+  // 野菜
+  { name: /にんじん|人参/i,                                emoji: '🥕' },
+  { name: /ブロッコリー/i,                                 emoji: '🥦' },
+  { name: /トマト/i,                                       emoji: '🍅' },
+  { name: /きゅうり|胡瓜/i,                                emoji: '🥒' },
+  { name: /なす|茄子/i,                                    emoji: '🍆' },
+  { name: /ピーマン|パプリカ/i,                            emoji: '🫑' },
+  { name: /とうもろこし|コーン/i,                          emoji: '🌽' },
+  { name: /かぼちゃ|南瓜/i,                               emoji: '🎃' },
+  { name: /じゃがいも|ジャガイモ|さつまいも|里芋|長芋/i,   emoji: '🥔' },
+  { name: /たまねぎ|玉ねぎ|玉葱/i,                        emoji: '🧅' },
+  { name: /にんにく|ニンニク/i,                            emoji: '🧄' },
+  { name: /しょうが|生姜/i,                               emoji: '🫚' },
+  { name: /ねぎ|ネギ/i,                                   emoji: '🥬' },
+  { name: /きのこ|しめじ|えのき|しいたけ|まいたけ|エリンギ/i, emoji: '🍄' },
+  { name: /もやし|豆苗/i,                                  emoji: '🌱' },
+  { name: /ほうれん草|小松菜|青梗菜|水菜|春菊|大葉/i,      emoji: '🥬' },
+  { name: /レタス|サニーレタス/i,                          emoji: '🥬' },
+  { name: /キャベツ|白菜/i,                                emoji: '🥬' },
+  { name: /大根|ごぼう/i,                                  emoji: '🫛' },
+  { name: /枝豆|えだまめ|そら豆|いんげん/i,               emoji: '🫘' },
+  // 果物
+  { name: /バナナ/i,                                       emoji: '🍌' },
+  { name: /いちご|苺/i,                                   emoji: '🍓' },
+  { name: /ぶどう|葡萄/i,                                  emoji: '🍇' },
+  { name: /りんご|リンゴ/i,                               emoji: '🍎' },
+  { name: /みかん/i,                                       emoji: '🍊' },
+  { name: /オレンジ/i,                                     emoji: '🍊' },
+  { name: /レモン|ライム|ゆず/i,                           emoji: '🍋' },
+  { name: /もも|桃/i,                                     emoji: '🍑' },
+  { name: /スイカ|すいか/i,                                emoji: '🍉' },
+  { name: /メロン/i,                                       emoji: '🍈' },
+  { name: /アボカド/i,                                     emoji: '🥑' },
+  { name: /キウイ/i,                                       emoji: '🥝' },
+  { name: /パイン|パイナップル/i,                          emoji: '🍍' },
+  { name: /マンゴー/i,                                     emoji: '🥭' },
+  { name: /梨|なし/i,                                     emoji: '🍐' },
+  { name: /ブルーベリー/i,                                 emoji: '🫐' },
+  // その他
+  { name: /卵|たまご|玉子/i,                              emoji: '🥚' },
+  { name: /牛乳|豆乳/i,                                   emoji: '🥛' },
+  { name: /チーズ|クリームチーズ/i,                        emoji: '🧀' },
+  { name: /バター/i,                                       emoji: '🧈' },
+  { name: /ヨーグルト/i,                                   emoji: '🫙' },
+  { name: /豆腐|とうふ|厚揚げ/i,                          emoji: '⬜' },
+  { name: /納豆/i,                                         emoji: '🫘' },
+  { name: /パン/i,                                         emoji: '🍞' },
+  { name: /ごはん|米飯|白米/i,                            emoji: '🍚' },
+  { name: /こんにゃく|蒟蒻/i,                             emoji: '⬛' },
+];
+const CAT_EMOJI = { meat:'🥩', fish:'🐟', vegetable:'🥬', fruit:'🍎', other:'🥚' };
+
+function ingredientEmoji(name, category) {
+  for (const e of EMOJI_MAP) {
+    if (e.name.test(name)) return e.emoji;
+  }
+  return CAT_EMOJI[category] || '🍽️';
+}
+
 const CUT_KEYWORDS = [
   /カット|cut/i,/スライス/i,/みじん/i,/千切り|せん切り/i,
   /ざく/i,/薄切り/i,/輪切り/i,/角切り/i,
@@ -709,9 +787,8 @@ function refreshStockList() {
 }
 
 function renderCard(item) {
-  const imgHtml = item.thumbnail
-    ? `<img class="card-thumb" src="${item.thumbnail}" alt="">`
-    : `<div class="card-thumb-ph">${item.storage_type==='freezer'?'🧊':'❄️'}</div>`;
+  const emoji   = ingredientEmoji(item.name, item.category);
+  const imgHtml = `<div class="card-thumb-ph">${emoji}</div>`;
   const badge = item.status==='alert'
     ? `<span class="status-badge badge-alert">🚨 期限注意</span>`
     : `<span class="status-badge badge-available">✅ 在庫あり</span>`;
