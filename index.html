@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+  <title>冷蔵庫在庫管理</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#f1f5f9; --card:#fff; --primary:#0ea5e9; --primary-d:#0284c7;
+      --success:#22c55e; --warning:#f97316; --danger:#ef4444;
+      --text:#0f172a; --muted:#64748b; --border:#e2e8f0;
+      --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+    }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic UI',sans-serif;
+           background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:80px; }
+
+    /* Header */
+    .header { background:#0f172a;color:#fff;padding:14px 20px;
+      display:flex;align-items:center;justify-content:space-between;
+      position:sticky;top:0;z-index:100; }
+    .header h1 { font-size:17px;font-weight:700; }
+    .icon-btn { background:rgba(255,255,255,.12);border:none;color:#fff;
+      width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:18px;
+      display:flex;align-items:center;justify-content:center;transition:background .2s; }
+    .icon-btn:hover { background:rgba(255,255,255,.25); }
+
+    /* Main */
+    .main { max-width:640px;margin:0 auto;padding:16px; }
+
+    /* Upload card */
+    .upload-card { background:var(--card);border-radius:16px;
+      padding:20px;margin-bottom:20px;box-shadow:var(--shadow); }
+    .upload-card h2 { font-size:15px;font-weight:700;margin-bottom:14px; }
+    .mode-toggle { display:flex;gap:8px;margin-bottom:14px; }
+    .mode-btn { flex:1;padding:9px;border-radius:10px;font-size:13px;font-weight:700;
+      cursor:pointer;border:1.5px solid var(--border);background:var(--bg);
+      color:var(--muted);transition:all .2s;font-family:inherit; }
+    .mode-btn.active { background:var(--primary);border-color:var(--primary);color:#fff; }
+
+    .drop-zone { border:2px dashed var(--border);border-radius:12px;padding:32px;
+      text-align:center;cursor:pointer;transition:all .2s;background:#f8fafc; }
+    .drop-zone:hover,.drop-zone.drag-over { border-color:var(--primary);background:#f0f9ff; }
+    .drop-zone .dz-icon { font-size:38px;margin-bottom:8px; }
+    .drop-zone p { color:var(--muted);font-size:14px;line-height:1.6; }
+    .drop-zone.has-image { border-style:solid;border-color:var(--primary);padding:6px; }
+    .drop-zone.has-image img { max-height:200px;border-radius:8px;object-fit:cover;width:100%; }
+
+    .form-row { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px; }
+    .form-row-3 { display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;margin-top:12px; }
+    .form-group { display:flex;flex-direction:column;gap:5px; }
+    .form-group label { font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em; }
+    .form-group input,.form-group select { border:1px solid var(--border);border-radius:8px;
+      padding:10px 12px;font-size:14px;outline:none;transition:border-color .2s;
+      font-family:inherit;background:#fff; }
+    .form-group input:focus,.form-group select:focus { border-color:var(--primary); }
+
+    .btn { border:none;border-radius:10px;padding:13px 20px;font-size:14px;font-weight:700;
+      cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;
+      gap:8px;width:100%;margin-top:14px;font-family:inherit; }
+    .btn-primary { background:var(--primary);color:#fff; }
+    .btn-primary:hover:not(:disabled) { background:var(--primary-d); }
+    .btn-primary:disabled { background:#94a3b8;cursor:not-allowed; }
+    .btn-secondary { background:var(--bg);color:var(--text);border:1.5px solid var(--border); }
+    .btn-secondary:hover { border-color:var(--primary);color:var(--primary); }
+
+    /* Manual pending */
+    .manual-pending { margin-top:12px;display:flex;flex-direction:column;gap:6px; }
+    .manual-item { display:flex;align-items:center;gap:8px;background:var(--bg);
+      border-radius:8px;padding:8px 12px;font-size:14px; }
+    .manual-item-name { flex:1;font-weight:600; }
+    .manual-item-sub  { color:var(--muted);font-size:12px;white-space:nowrap; }
+    .manual-item-del  { background:none;border:none;cursor:pointer;color:var(--muted);
+      font-size:16px;padding:2px 4px;border-radius:4px; }
+    .manual-item-del:hover { color:var(--danger); }
+
+    /* Section header */
+    .section-header { display:flex;align-items:center;gap:8px;margin:20px 0 10px;
+      font-size:13px;font-weight:700;color:var(--muted);
+      text-transform:uppercase;letter-spacing:.06em; }
+    .section-count { background:var(--border);border-radius:999px;padding:2px 8px;font-size:12px; }
+
+    /* Ingredient card */
+    .ingredient-card { background:var(--card);border-radius:14px;padding:14px 16px;
+      margin-bottom:10px;box-shadow:var(--shadow);display:flex;align-items:flex-start;
+      gap:14px;border-left:4px solid transparent;transition:transform .1s; }
+    .ingredient-card:hover { transform:translateY(-1px); }
+    .ingredient-card.status-available { border-left-color:var(--success); }
+    .ingredient-card.status-alert     { border-left-color:var(--danger);background:#fff5f5; }
+
+    .card-thumb { width:54px;height:54px;border-radius:10px;object-fit:cover;flex-shrink:0; }
+    .card-thumb-ph { width:54px;height:54px;border-radius:10px;background:var(--bg);
+      display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0; }
+
+    .card-info { flex:1;min-width:0; }
+    .card-name-row { display:flex;align-items:center;gap:4px; }
+    .card-name { font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .card-meta { font-size:12px;color:var(--muted);margin-top:3px; }
+    .card-bottom { display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px; }
+
+    .status-badge { display:inline-flex;align-items:center;gap:3px;padding:3px 8px;
+      border-radius:999px;font-size:11px;font-weight:700; }
+    .badge-available { background:#dcfce7;color:#166534; }
+    .badge-alert     { background:#fee2e2;color:#991b1b; }
+    .category-badge  { display:inline-flex;align-items:center;padding:2px 7px;
+      border-radius:999px;font-size:11px;font-weight:600;background:#f1f5f9;color:var(--muted); }
+    .days-text { font-size:12px;color:var(--muted); }
+    .days-text b { color:var(--text); }
+
+    /* Quantity row */
+    .qty-row { display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px; }
+    .qty-chip { display:flex;align-items:center;gap:6px;background:var(--bg);
+      border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600; }
+    .qty-chip.cut-chip { background:#fef9c3; }
+    .qty-num { min-width:20px;text-align:center;font-weight:700; }
+    .qty-btn { width:28px;height:28px;border-radius:6px;border:1px solid var(--border);
+      background:#fff;cursor:pointer;font-size:14px;font-weight:700;
+      display:flex;align-items:center;justify-content:center;
+      transition:all .15s;line-height:1;flex-shrink:0; }
+    .qty-btn:hover { border-color:var(--primary);color:var(--primary); }
+    .qty-btn.cut-action:hover { border-color:#d97706;color:#d97706; }
+    .qty-btn-gap { width:10px;flex-shrink:0; }
+
+    /* Card actions */
+    .card-actions { display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0; }
+    .storage-btn { border:1px solid var(--border);border-radius:20px;padding:4px 10px;
+      font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;
+      white-space:nowrap;font-family:inherit; }
+    .storage-btn.fridge  { background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8; }
+    .storage-btn.freezer { background:#eef2ff;border-color:#c7d2fe;color:#4338ca; }
+    .icon-action-btn { background:none;border:none;cursor:pointer;color:var(--muted);
+      padding:3px;display:flex;align-items:center;border-radius:4px;
+      transition:color .15s;flex-shrink:0; }
+    .icon-action-btn:hover { color:var(--primary); }
+    .icon-action-btn.delete:hover { color:var(--danger); }
+
+    /* Modal */
+    .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
+      z-index:200;align-items:flex-end;justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal { background:var(--card);border-radius:20px 20px 0 0;padding:24px;
+      width:100%;max-width:640px;animation:slideUp .28s ease; }
+    @keyframes slideUp { from{transform:translateY(100%)}to{transform:translateY(0)} }
+    .modal-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:20px; }
+    .modal-header h3 { font-size:17px;font-weight:700; }
+    .close-btn { background:var(--bg);border:none;width:30px;height:30px;border-radius:50%;
+      cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center; }
+
+    .api-wrap { position:relative; }
+    .api-wrap input { padding-right:44px;width:100%; }
+    .toggle-vis { position:absolute;right:10px;top:50%;transform:translateY(-50%);
+      background:none;border:none;cursor:pointer;color:var(--muted);
+      display:flex;align-items:center;padding:4px;border-radius:4px;transition:color .15s; }
+    .toggle-vis:hover { color:var(--text); }
+    .infer-hint { display:none;font-size:12px;margin-top:5px;padding:7px 10px;
+      background:#f0f9ff;border-radius:8px;color:#0369a1;border:1px solid #bae6fd; }
+
+    /* Toast / Loading */
+    .toast { position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+      background:#0f172a;color:#fff;padding:11px 20px;border-radius:12px;
+      font-size:14px;font-weight:600;z-index:1000;opacity:0;transition:opacity .3s;
+      white-space:nowrap;pointer-events:none; }
+    .toast.show { opacity:1; }
+    .loading-overlay { display:none;position:fixed;inset:0;background:rgba(15,23,42,.72);
+      z-index:300;flex-direction:column;align-items:center;justify-content:center;gap:16px; }
+    .loading-overlay.show { display:flex; }
+    .spinner { width:48px;height:48px;border:4px solid rgba(255,255,255,.2);
+      border-top-color:var(--primary);border-radius:50%;animation:spin .75s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .loading-text { color:#fff;font-weight:600; }
+
+    /* Empty / warn */
+    .empty-state { text-align:center;padding:48px 20px;color:var(--muted); }
+    .empty-state .ei { font-size:48px;margin-bottom:12px; }
+    .empty-state p { font-size:15px;line-height:1.7; }
+    .warn-banner { background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;
+      padding:12px 16px;margin-bottom:16px;font-size:13px;color:#9a3412;
+      display:flex;align-items:center;gap:8px; }
+
+    @media(max-width:480px){.form-row,.form-row-3{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <h1>🥦 冷蔵庫在庫管理</h1>
+  <button class="icon-btn" onclick="openSettings()">⚙️</button>
+</header>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Gemini が食材を解析中...</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>✏️ 食材を編集</h3>
+      <button class="close-btn" onclick="closeEdit()">✕</button>
+    </div>
+    <div class="form-group">
+      <label>食材名</label>
+      <input type="text" id="editName" placeholder="食材名を入力"
+             oninput="onEditNameInput()" onkeydown="if(event.key==='Enter')onConfirmEdit()">
+      <div class="infer-hint" id="editHint"></div>
+    </div>
+    <div class="form-row" style="margin-top:12px;">
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select id="editCategory">
+          <option value="vegetable">🥦 野菜</option>
+          <option value="fruit">🍎 果物</option>
+          <option value="meat">🥩 肉類</option>
+          <option value="fish">🐟 魚介</option>
+          <option value="other">📦 その他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>冷蔵 日持ち（日）</label>
+        <input type="number" id="editBaseDays" placeholder="例: 5" min="1" max="365"
+               onkeydown="if(event.key==='Enter')onConfirmEdit()">
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:12px;">
+      <div class="form-group">
+        <label>丸ごと 残り数</label>
+        <input type="number" id="editQtyWhole" placeholder="0" min="0" max="999">
+      </div>
+      <div class="form-group">
+        <label>✂️ カット中 数</label>
+        <input type="number" id="editQtyCut" placeholder="0" min="0" max="999">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="onConfirmEdit()" style="margin-top:16px;">
+      変更する
+    </button>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>⚙️ 設定</h3>
+      <button class="close-btn" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="form-group">
+      <label>GEMINI API キー</label>
+      <div class="api-wrap">
+        <input type="password" id="apiKeyInput" placeholder="AIza...">
+        <button class="toggle-vis" onclick="toggleApiVis()">
+          <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+          <svg id="eyeOffIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="onSaveApiKey()" style="margin-top:16px;">
+      💾 保存する
+    </button>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center;">
+      APIキーはこのブラウザの localStorage にのみ保存されます
+    </p>
+  </div>
+</div>
+
+<main class="main">
+  <div class="upload-card">
+    <h2>🛒 食材を新規登録する</h2>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="modePhotoBtn" onclick="switchMode('photo')">📷 写真から</button>
+      <button class="mode-btn"        id="modeManualBtn" onclick="switchMode('manual')">✏️ 手入力</button>
+    </div>
+
+    <!-- Photo mode -->
+    <div id="photoMode">
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="dz-icon">🛒</div>
+        <p>写真をタップして選択<br><small>または ドラッグ＆ドロップ</small></p>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="onFileSelect(event)">
+      <button class="btn btn-primary" id="analyzeBtn" onclick="onAnalyze()" disabled style="margin-top:14px;">
+        ✨ Gemini で食材を解析する
+      </button>
+    </div>
+
+    <!-- Manual mode -->
+    <div id="manualMode" style="display:none;">
+      <div class="form-group">
+        <label>食材名</label>
+        <input type="text" id="manualNameInput" placeholder="例: バナナ"
+               oninput="onManualNameInput()" onkeydown="if(event.key==='Enter')onAddManual()">
+        <div class="infer-hint" id="manualInferHint"></div>
+      </div>
+      <div class="form-row-3" style="margin-top:10px;">
+        <div class="form-group">
+          <label>カテゴリ</label>
+          <select id="manualCategory">
+            <option value="vegetable">🥦 野菜</option>
+            <option value="fruit">🍎 果物</option>
+            <option value="meat">🥩 肉類</option>
+            <option value="fish">🐟 魚介</option>
+            <option value="other">📦 その他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>冷蔵 日持ち（日）</label>
+          <input type="number" id="manualDaysInput" placeholder="自動推定" min="1" max="365">
+        </div>
+        <div class="form-group">
+          <label>個数</label>
+          <input type="number" id="manualQtyInput" placeholder="1" min="1" max="999" value="1">
+        </div>
+      </div>
+      <button class="btn btn-secondary" onclick="onAddManual()">＋ リストに追加</button>
+      <div class="manual-pending" id="manualPendingList"></div>
+      <button class="btn btn-primary" id="manualSaveBtn" onclick="onSaveManual()" disabled>
+        ✅ まとめて登録する
+      </button>
+    </div>
+
+    <!-- Shared -->
+    <div class="form-row" style="margin-top:14px;">
+      <div class="form-group">
+        <label>📅 購入日</label>
+        <input type="date" id="dateInput" onchange="updateBtn()">
+      </div>
+      <div class="form-group">
+        <label>🏪 店舗名</label>
+        <input type="text" id="storeInput" placeholder="例: イオン" maxlength="20" oninput="updateBtn()">
+      </div>
+    </div>
+  </div>
+
+  <div id="stockList"></div>
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  DB
+// ═══════════════════════════════════════════════════════
+const DB_KEY  = 'fridge_stock_v3';
+const KEY_API = 'gemini_api_key';
+function loadDB()    { try{return JSON.parse(localStorage.getItem(DB_KEY)||'{}')}catch{return{}} }
+function saveDB(db)  { localStorage.setItem(DB_KEY,JSON.stringify(db)) }
+function getApiKey() { return localStorage.getItem(KEY_API)||'' }
+function saveApiKey(k){ localStorage.setItem(KEY_API,k.trim()) }
+
+// ═══════════════════════════════════════════════════════
+//  コア計算（Python fridge_manager.py と同ロジック）
+// ═══════════════════════════════════════════════════════
+
+// qty_cut > 0 のときカット扱いとする
+function isCutFromQty(ing) { return (ing.qty_cut || 0) > 0; }
+
+function calcEffectiveLifespan(baseLifespan, storageType, isCut, category) {
+  if (storageType === 'fridge') return isCut ? Math.min(3, baseLifespan) : baseLifespan;
+  if (category === 'meat' || category === 'fish') return 7;
+  if (isCut)              return 21;
+  if (baseLifespan >= 10) return baseLifespan;
+  return Math.min(baseLifespan * 4, 28);
+}
+
+function calcStatus(elapsed, effective, category, storageType) {
+  if (elapsed > effective) return 'used_up';
+  const rem = effective - elapsed;
+  if (category === 'meat' || category === 'fish') return rem <= 2 ? 'alert' : 'available';
+  if (storageType === 'freezer') return elapsed > 14 ? 'alert' : 'available';
+  return rem <= 1 ? 'alert' : 'available';
+}
+
+// ═══════════════════════════════════════════════════════
+//  ① APIキー
+// ═══════════════════════════════════════════════════════
+function onSaveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key){ showToast('❌ APIキーを入力してください'); return; }
+  saveApiKey(key); closeSettings(); showToast('✅ APIキーを保存しました'); refreshStockList();
+}
+
+// ═══════════════════════════════════════════════════════
+//  ② 写真解析・初期保存
+// ═══════════════════════════════════════════════════════
+async function analyzeAndSaveInitialData(imageFile, dateStr, storeName) {
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error('APIキーが設定されていません。右上 ⚙️ から入力してください。');
+
+  const base64Data = await fileToBase64(imageFile);
+  const mimeType   = imageFile.type || 'image/jpeg';
+
+  const responseSchema = {
+    type:'OBJECT', properties:{
+      ingredients:{
+        type:'ARRAY', items:{
+          type:'OBJECT',
+          properties:{
+            name:          {type:'STRING'},
+            category:      {type:'STRING', enum:['meat','fish','vegetable','fruit','other']},
+            base_lifespan: {type:'INTEGER'},
+            quantity:      {type:'INTEGER'}
+          },
+          required:['name','category','base_lifespan','quantity']
+        }
+      }
+    }, required:['ingredients']
+  };
+
+  const prompt = `この写真に写っているすべての食材を特定し、JSONで返してください。
+
+■ 返却フィールド
+- name: 食材名（日本語）
+- category: 必ず以下の5値のいずれか（絶対に other にしない）
+- base_lifespan: 冷蔵保存での一般的な日持ち日数（整数）
+- quantity: 写真に映っている個数を正確に数えること（例: 卵が6個見えるなら6、きゅうりが3本なら3、肉が1パックなら1）。重なっていて全部見えない場合は見えている数を返す。どうしても数えられない場合のみ1。
+
+■ category の判定基準（厳守）
+  meat      → 鶏肉・豚肉・牛肉・羊肉・ひき肉・ベーコン・ハム・ソーセージ等「陸の動物の肉」全般
+  fish      → 魚（鮭・鯖・鱈・鯛・マグロ等）・エビ・イカ・タコ・貝・刺身・かまぼこ等「海産物・魚介加工品」全般
+  vegetable → 野菜全般（葉物・根菜・なす・トマト・きのこ類を含む）
+  fruit     → 果物全般（バナナ・いちご・りんご・みかん・メロン・アボカド等）
+  other     → 上記4つのどれにも当てはまらない場合のみ（卵・乳製品・豆腐・加工食品など）
+
+■ 日持ちの目安（冷蔵）
+  葉物・青梗菜・レタス: 3日  きゅうり・なす・トマト: 4日  ブロッコリー・きのこ: 3日  もやし: 2日
+  キャベツ・白菜: 14日  にんじん・大根: 10日  じゃがいも: 14日  たまねぎ: 30日  しょうが: 14日
+  鶏・豚・牛肉（生）: 2日  ひき肉: 1日  魚（切り身）: 2日  エビ・イカ: 2日
+  卵: 14日  豆腐: 3日  牛乳: 5日  バナナ・いちご: 3日  りんご・梨: 7日
+写真に写っていない食材は含めないこと。日持ちは安全優先で短めに。`;
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{parts:[
+          {inline_data:{mime_type:mimeType, data:base64Data}},
+          {text:prompt}
+        ]}],
+        generationConfig:{responseMimeType:'application/json', responseSchema}
+      })
+    }
+  );
+  if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e?.error?.message||`API エラー (${res.status})`); }
+  const json   = await res.json();
+  const parsed = JSON.parse(json.candidates[0].content.parts[0].text);
+
+  const thumbnail = await compressThumbnail(imageFile);
+  const recordKey = `${dateStr}_${storeName}`;
+  const db = loadDB();
+  if (!db[recordKey]) db[recordKey] = {image_thumbnail:null, ingredients:[]};
+  db[recordKey].image_thumbnail = thumbnail;
+  db[recordKey].ingredients = parsed.ingredients.map(i => ({
+    name:          i.name,
+    category:      i.category,
+    base_lifespan: Math.max(1, i.base_lifespan),
+    storage_type:  'fridge',
+    qty_whole:     Math.max(1, i.quantity || 1),
+    qty_cut:       0,
+    status:        'available',
+  }));
+  saveDB(db);
+  return db[recordKey];
+}
+
+// ═══════════════════════════════════════════════════════
+//  ③ 保存方法を更新（qty は変更しない）
+// ═══════════════════════════════════════════════════════
+function setStorageType(recordKey, name, storageType) {
+  const db = loadDB();
+  const ing = db[recordKey]?.ingredients.find(i => i.name === name);
+  if (!ing) return;
+  ing.storage_type = storageType;
+  saveDB(db);
+}
+
+// ── 個数操作 ──────────────────────────────────────────
+function useWhole(recordKey, name) {
+  const db = loadDB();
+  const ing = db[recordKey]?.ingredients.find(i => i.name === name);
+  if (!ing || ing.qty_whole <= 0) return;
+  ing.qty_whole--;
+  if (ing.qty_whole === 0 && ing.qty_cut === 0) ing.status = 'used_up';
+  saveDB(db);
+}
+function cutOne(recordKey, name) {
+  const db = loadDB();
+  const ing = db[recordKey]?.ingredients.find(i => i.name === name);
+  if (!ing || ing.qty_whole <= 0) return;
+  ing.qty_whole--;
+  ing.qty_cut++;
+  saveDB(db);
+}
+function useCut(recordKey, name) {
+  const db = loadDB();
+  const ing = db[recordKey]?.ingredients.find(i => i.name === name);
+  if (!ing || ing.qty_cut <= 0) return;
+  ing.qty_cut--;
+  if (ing.qty_whole === 0 && ing.qty_cut === 0) ing.status = 'used_up';
+  saveDB(db);
+}
+
+// ═══════════════════════════════════════════════════════
+//  ④ ステータス自動更新
+// ═══════════════════════════════════════════════════════
+function refreshAndUpdateStatuses() {
+  const db    = loadDB();
+  const today = new Date(); today.setHours(0,0,0,0);
+  for (const [rk, record] of Object.entries(db)) {
+    const [y,m,d] = rk.split('_')[0].split('/').map(Number);
+    const elapsed = Math.round((today - new Date(y,m-1,d)) / 86_400_000);
+    for (const ing of record.ingredients) {
+      if ((ing.qty_whole||0) + (ing.qty_cut||0) === 0) { ing.status = 'used_up'; continue; }
+      const isCut   = isCutFromQty(ing);
+      const eff     = calcEffectiveLifespan(ing.base_lifespan, ing.storage_type, isCut, ing.category);
+      ing.status = calcStatus(elapsed, eff, ing.category, ing.storage_type);
+    }
+  }
+  saveDB(db); return db;
+}
+
+// ═══════════════════════════════════════════════════════
+//  ⑤ アクティブ食材取得
+// ═══════════════════════════════════════════════════════
+function getActiveIngredients() {
+  const db    = refreshAndUpdateStatuses();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const active = [];
+  for (const [rk, record] of Object.entries(db)) {
+    const [y,m,d]  = rk.split('_')[0].split('/').map(Number);
+    const purchase = new Date(y,m-1,d);
+    const elapsed  = Math.round((today - purchase) / 86_400_000);
+    const storeName = rk.split('_').slice(1).join('_');
+    record.ingredients.forEach((ing,idx) => {
+      if (ing.status !== 'available' && ing.status !== 'alert') return;
+      const isCut  = isCutFromQty(ing);
+      const eff    = calcEffectiveLifespan(ing.base_lifespan, ing.storage_type, isCut, ing.category);
+      const expiry = new Date(purchase); expiry.setDate(expiry.getDate() + eff);
+      active.push({
+        rk, storeName, purchase, expiry, daysLeft: eff - elapsed,
+        ingredientIndex: idx, thumbnail: record.image_thumbnail || null,
+        name: ing.name, category: ing.category, base_lifespan: ing.base_lifespan,
+        storage_type: ing.storage_type, qty_whole: ing.qty_whole||0, qty_cut: ing.qty_cut||0,
+        status: ing.status,
+      });
+    });
+  }
+  const alerts    = active.filter(i => i.status==='alert').sort((a,b)=>a.daysLeft-b.daysLeft);
+  const available = active.filter(i => i.status==='available')
+                          .sort((a,b)=>a.purchase-b.purchase||a.ingredientIndex-b.ingredientIndex);
+  return [...alerts, ...available];
+}
+
+// ── 削除・複製・編集 ──────────────────────────────────
+function deleteIngredient(rk, name) {
+  const db = loadDB();
+  if (!db[rk]) return;
+  db[rk].ingredients = db[rk].ingredients.filter(i => i.name !== name);
+  if (db[rk].ingredients.length === 0) delete db[rk];
+  saveDB(db);
+}
+function duplicateIngredient(rk, name) {
+  const db = loadDB(); if (!db[rk]) return;
+  const orig = db[rk].ingredients.find(i => i.name === name);
+  if (!orig) return;
+  db[rk].ingredients.push({...orig});
+  saveDB(db);
+}
+function editIngredient(rk, oldName, newName, newCat, newDays, newQtyWhole, newQtyCut) {
+  const db = loadDB(); if (!db[rk]) return;
+  const ing = db[rk].ingredients.find(i => i.name === oldName);
+  if (!ing) return;
+  ing.name = newName;
+  if (newCat  !== null) ing.category      = newCat;
+  if (newDays !== null) ing.base_lifespan  = newDays;
+  if (newQtyWhole !== null) ing.qty_whole  = newQtyWhole;
+  if (newQtyCut   !== null) ing.qty_cut    = newQtyCut;
+  saveDB(db);
+}
+
+// ── 画像ユーティリティ ───────────────────────────────
+function fileToBase64(file) {
+  return new Promise((res,rej)=>{
+    const r=new FileReader(); r.onload=e=>res(e.target.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file);
+  });
+}
+function compressThumbnail(file,maxPx=220){
+  return new Promise(resolve=>{
+    const img=new Image(),url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const ratio=Math.min(maxPx/img.width,maxPx/img.height,1);
+      const c=document.createElement('canvas');
+      c.width=img.width*ratio; c.height=img.height*ratio;
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url); resolve(c.toDataURL('image/jpeg',.65));
+    }; img.src=url;
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  食材テーブル（名前→カテゴリ・日持ちの推定）
+// ═══════════════════════════════════════════════════════
+const LIFESPAN_DB = [
+  {name:/ひき肉|挽き肉|挽肉|ミンチ/i,                                                                fridge:1, category:'meat'},
+  {name:/鶏肉|とり肉|チキン|もも肉|むね肉|ささみ|手羽|砂肝|レバー.*鶏/i,                            fridge:2, category:'meat'},
+  {name:/豚肉|ぶた肉|ポーク|豚バラ|バラ肉|豚ロース|肩ロース|豚こま/i,                               fridge:2, category:'meat'},
+  {name:/牛肉|ぎゅう肉|ビーフ|牛バラ|牛ロース|牛こま|すき焼き.*肉|焼肉/i,                          fridge:2, category:'meat'},
+  {name:/ラム|羊肉|マトン/i,                                                                        fridge:2, category:'meat'},
+  {name:/ハム|ベーコン|ウインナー|ソーセージ|サラミ/i,                                              fridge:5, category:'meat'},
+  {name:/刺身|さしみ/i,                                                                              fridge:1, category:'fish'},
+  {name:/鮭|サーモン|しゃけ|鯖|サバ|鱈|タラ|鯛|ブリ|カンパチ|マグロ|ツナ/i,                       fridge:2, category:'fish'},
+  {name:/アジ|あじ|イワシ|いわし|サンマ|さんま|カツオ|かつお|カレイ|ヒラメ/i,                      fridge:2, category:'fish'},
+  {name:/エビ|えび|海老|イカ|いか|タコ|貝|ホタテ|アサリ|ハマグリ|牡蠣|カキ/i,                      fridge:2, category:'fish'},
+  {name:/かまぼこ|ちくわ|はんぺん|さつま揚げ/i,                                                    fridge:5, category:'fish'},
+  {name:/ほうれん草|ほうれんそう|小松菜|青梗菜|チンゲン菜|水菜|春菊|大葉|パクチー|三つ葉/i,       fridge:3, category:'vegetable'},
+  {name:/レタス|サニーレタス|ロメイン|サラダ菜/i,                                                   fridge:3, category:'vegetable'},
+  {name:/ネギ|ねぎ|長ネギ|長ねぎ|万能ねぎ|小ねぎ/i,                                               fridge:5, category:'vegetable'},
+  {name:/きゅうり|胡瓜/i,                                                                            fridge:4, category:'vegetable'},
+  {name:/なす|茄子|ナス/i,                                                                           fridge:4, category:'vegetable'},
+  {name:/トマト|ミニトマト|プチトマト/i,                                                             fridge:4, category:'vegetable'},
+  {name:/ピーマン|パプリカ|しし唐/i,                                                                fridge:4, category:'vegetable'},
+  {name:/ズッキーニ|オクラ|とうもろこし|コーン/i,                                                  fridge:4, category:'vegetable'},
+  {name:/ブロッコリー|カリフラワー|アスパラ/i,                                                      fridge:3, category:'vegetable'},
+  {name:/もやし|豆苗/i,                                                                             fridge:2, category:'vegetable'},
+  {name:/キャベツ|白菜/i,                                                                           fridge:14,category:'vegetable'},
+  {name:/にんじん|人参|大根|ごぼう/i,                                                               fridge:10,category:'vegetable'},
+  {name:/かぼちゃ|南瓜/i,                                                                           fridge:7, category:'vegetable'},
+  {name:/じゃがいも|ジャガイモ|さつまいも|里芋|長芋|ながいも/i,                                    fridge:14,category:'vegetable'},
+  {name:/たまねぎ|玉ねぎ|玉葱/i,                                                                   fridge:30,category:'vegetable'},
+  {name:/しょうが|生姜/i,                                                                           fridge:14,category:'vegetable'},
+  {name:/にんにく|ニンニク/i,                                                                       fridge:14,category:'vegetable'},
+  {name:/きのこ|しめじ|えのき|しいたけ|椎茸|まいたけ|エリンギ|なめこ|マッシュルーム/i,            fridge:3, category:'vegetable'},
+  {name:/枝豆|えだまめ|いんげん|そら豆|スナップエンドウ/i,                                         fridge:3, category:'vegetable'},
+  {name:/バナナ/i,                                                                                  fridge:3, category:'fruit'},
+  {name:/いちご|苺|ブルーベリー|ラズベリー/i,                                                       fridge:3, category:'fruit'},
+  {name:/ぶどう|葡萄/i,                                                                             fridge:4, category:'fruit'},
+  {name:/もも|桃|すいか|スイカ|メロン/i,                                                           fridge:4, category:'fruit'},
+  {name:/りんご|リンゴ|梨|なし|キウイ/i,                                                           fridge:7, category:'fruit'},
+  {name:/みかん|オレンジ|グレープフルーツ|レモン|ライム|ゆず/i,                                    fridge:14,category:'fruit'},
+  {name:/アボカド/i,                                                                                fridge:4, category:'fruit'},
+  {name:/マンゴー|パイナップル|パイン/i,                                                           fridge:4, category:'fruit'},
+  {name:/卵|たまご|玉子/i,                                                                         fridge:14,category:'other'},
+  {name:/豆腐|とうふ|厚揚げ|油揚げ/i,                                                              fridge:3, category:'other'},
+  {name:/納豆/i,                                                                                   fridge:7, category:'other'},
+  {name:/牛乳|ぎゅうにゅう|豆乳/i,                                                                fridge:5, category:'other'},
+  {name:/ヨーグルト/i,                                                                             fridge:10,category:'other'},
+  {name:/バター/i,                                                                                 fridge:21,category:'other'},
+  {name:/チーズ|クリームチーズ/i,                                                                  fridge:10,category:'other'},
+  {name:/こんにゃく|蒟蒻|しらたき/i,                                                              fridge:7, category:'other'},
+];
+
+const CUT_KEYWORDS = [
+  /カット|cut/i,/スライス/i,/みじん/i,/千切り|せん切り/i,
+  /ざく/i,/薄切り/i,/輪切り/i,/角切り/i,
+  /半分|はんぶん|半割/i,/すりおろし|おろし/i,/刻み|きざみ/i,
+];
+function isCutName(name){ return CUT_KEYWORDS.some(kw=>kw.test(name)); }
+function inferFromName(name){
+  for(const e of LIFESPAN_DB){ if(e.name.test(name)) return {fridge:e.fridge,category:e.category}; }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════
+//  UI レンダリング
+// ═══════════════════════════════════════════════════════
+const CAT_LABEL = {meat:'🥩 肉類',fish:'🐟 魚介',vegetable:'🥦 野菜',fruit:'🍎 果物',other:'📦 その他'};
+
+function refreshStockList() {
+  const list   = document.getElementById('stockList');
+  const active = getActiveIngredients();
+  const alerts    = active.filter(i=>i.status==='alert');
+  const available = active.filter(i=>i.status==='available');
+  if (active.length === 0) {
+    const noKey = !getApiKey();
+    list.innerHTML = (noKey?`<div class="warn-banner">⚠️ APIキーが未設定です。右上 ⚙️ から入力してください。</div>`:'') +
+      `<div class="empty-state"><div class="ei">${noKey?'🔑':'✅'}</div>
+       <p>${noKey?'APIキーを設定してから<br>食材写真を登録しましょう':'在庫がありません。<br>写真を撮って登録してください。'}</p></div>`;
+    return;
+  }
+  let html = '';
+  if (alerts.length)
+    html += `<div class="section-header" style="color:var(--danger);">🚨 期限注意 <span class="section-count" style="background:#fee2e2;color:#991b1b;">${alerts.length}</span></div>`
+          + alerts.map(renderCard).join('');
+  if (available.length)
+    html += `<div class="section-header">✅ 在庫あり <span class="section-count">${available.length}</span></div>`
+          + available.map(renderCard).join('');
+  list.innerHTML = html;
+}
+
+function renderCard(item) {
+  const imgHtml = item.thumbnail
+    ? `<img class="card-thumb" src="${item.thumbnail}" alt="">`
+    : `<div class="card-thumb-ph">${item.storage_type==='freezer'?'🧊':'❄️'}</div>`;
+  const badge = item.status==='alert'
+    ? `<span class="status-badge badge-alert">🚨 期限注意</span>`
+    : `<span class="status-badge badge-available">✅ 在庫あり</span>`;
+  const daysText = item.daysLeft<=0?'今日が期限':item.daysLeft===1?'あと <b>1日</b>':`あと <b>${item.daysLeft}日</b>`;
+  const newSt  = item.storage_type==='freezer'?'fridge':'freezer';
+  const rkA = escAttr(item.rk), nmA = escAttr(item.name);
+
+  // 個数行
+  let qtyHtml = '<div class="qty-row">';
+  if (item.qty_whole > 0) {
+    qtyHtml += `<div class="qty-chip">
+      🔵 丸ごと <span class="qty-num">${item.qty_whole}</span>個
+      <button class="qty-btn" onclick="onUseWhole('${rkA}','${nmA}')" title="1個使用">−</button>
+      <span class="qty-btn-gap"></span>
+      <button class="qty-btn cut-action" onclick="onCutOne('${rkA}','${nmA}')" title="1個カット">✂</button>
+    </div>`;
+  }
+  if (item.qty_cut > 0) {
+    qtyHtml += `<div class="qty-chip cut-chip">
+      ✂️ カット <span class="qty-num">${item.qty_cut}</span>個
+      <button class="qty-btn" onclick="onUseCut('${rkA}','${nmA}')" title="1個使用">−</button>
+    </div>`;
+  }
+  if (item.qty_whole === 0 && item.qty_cut === 0) {
+    qtyHtml += `<div class="qty-chip">📦 在庫なし</div>`;
+  }
+  qtyHtml += '</div>';
+
+  return `
+  <div class="ingredient-card status-${item.status}">
+    ${imgHtml}
+    <div class="card-info">
+      <div class="card-name-row">
+        <div class="card-name">${esc(item.name)}</div>
+        <button class="icon-action-btn" onclick="openEdit('${rkA}','${nmA}','${item.category}',${item.base_lifespan},${item.qty_whole},${item.qty_cut})" title="食材を編集">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+      </div>
+      <div class="card-meta">${esc(item.storeName)} · ${fmtDate(item.purchase)} · <span class="category-badge">${CAT_LABEL[item.category]||item.category}</span></div>
+      <div class="card-bottom">
+        ${badge}
+        <span class="days-text">${daysText}（期限 ${fmtDate(item.expiry)}）</span>
+      </div>
+      ${qtyHtml}
+    </div>
+    <div class="card-actions">
+      <button class="storage-btn ${item.storage_type}"
+        onclick="onToggleStorage('${rkA}','${nmA}','${newSt}')"
+        title="${newSt==='freezer'?'冷凍に変更':'冷蔵に変更'}"
+      >${item.storage_type==='freezer'?'🧊 冷凍':'❄️ 冷蔵'}</button>
+      <button class="icon-action-btn delete" onclick="onDelete('${rkA}','${nmA}')" title="削除" style="margin-top:4px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+        </svg>
+      </button>
+    </div>
+  </div>`;
+}
+
+function esc(s)     { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s) { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function fmtDate(d) {
+  const dt = d instanceof Date ? d : new Date(d);
+  return `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  イベントハンドラ
+// ═══════════════════════════════════════════════════════
+let selectedFile = null;
+let currentMode  = 'photo';
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('photoMode').style.display  = mode==='photo' ?'':'none';
+  document.getElementById('manualMode').style.display = mode==='manual'?'':'none';
+  document.getElementById('modePhotoBtn').classList.toggle('active', mode==='photo');
+  document.getElementById('modeManualBtn').classList.toggle('active', mode==='manual');
+  updateBtn();
+}
+
+function onFileSelect(e) {
+  const file = e.target.files[0]; if(!file)return;
+  selectedFile = file;
+  const url = URL.createObjectURL(file);
+  const zone = document.getElementById('dropZone');
+  zone.innerHTML = `<img src="${url}" alt="プレビュー">`; zone.classList.add('has-image'); updateBtn();
+}
+
+function updateBtn() {
+  const dateOk  = !!document.getElementById('dateInput').value;
+  const storeOk = !!document.getElementById('storeInput').value.trim();
+  document.getElementById('analyzeBtn').disabled = !(selectedFile && dateOk && storeOk);
+  const sb = document.getElementById('manualSaveBtn');
+  if(sb) sb.disabled = manualPendingList.length===0 || !dateOk || !storeOk;
+}
+
+async function onAnalyze() {
+  const dateStr   = document.getElementById('dateInput').value.replace(/-/g,'/');
+  const storeName = document.getElementById('storeInput').value.trim();
+  try {
+    showLoading('Gemini が食材を解析中...');
+    const rec = await analyzeAndSaveInitialData(selectedFile, dateStr, storeName);
+    hideLoading(); showToast(`✅ ${rec.ingredients.length} 種の食材を登録しました！`);
+    resetPhotoForm(); refreshStockList();
+  } catch(err) { hideLoading(); showToast('❌ '+err.message); }
+}
+
+function resetPhotoForm() {
+  selectedFile = null; document.getElementById('fileInput').value = '';
+  const z = document.getElementById('dropZone');
+  z.innerHTML = '<div class="dz-icon">🛒</div><p>写真をタップして選択<br><small>または ドラッグ＆ドロップ</small></p>';
+  z.classList.remove('has-image'); updateBtn();
+}
+
+// Card actions
+function onToggleStorage(rk, name, newSt) {
+  setStorageType(rk, name, newSt);
+  showToast(newSt==='freezer'?`🧊 ${name} を冷凍に変更しました`:`❄️ ${name} を冷蔵に変更しました`);
+  refreshStockList();
+}
+function onUseWhole(rk, name)  { useWhole(rk,name); showToast(`🔵 ${name} を1個使いました`); refreshStockList(); }
+function onCutOne(rk, name)    { cutOne(rk,name);   showToast(`✂️ ${name} を1個カットしました`); refreshStockList(); }
+function onUseCut(rk, name)    { useCut(rk,name);   showToast(`✂️ ${name}（カット）を1個使いました`); refreshStockList(); }
+function onDuplicate(rk, name) { duplicateIngredient(rk,name); showToast(`📋 「${name}」を複製しました`); refreshStockList(); }
+function onDelete(rk, name)    { deleteIngredient(rk,name); showToast(`🗑️ ${name} を削除しました`); refreshStockList(); }
+
+// Edit modal
+let editCtx = null;
+function openEdit(rk, name, cat, days, qw, qc) {
+  editCtx = {rk, oldName:name};
+  document.getElementById('editName').value      = name;
+  document.getElementById('editCategory').value  = cat;
+  document.getElementById('editBaseDays').value  = days;
+  document.getElementById('editQtyWhole').value  = qw;
+  document.getElementById('editQtyCut').value    = qc;
+  document.getElementById('editHint').style.display = 'none';
+  document.getElementById('editModal').classList.add('open');
+  setTimeout(()=>{const i=document.getElementById('editName');i.focus();i.select();},80);
+}
+function closeEdit() { document.getElementById('editModal').classList.remove('open'); editCtx=null; }
+function onEditNameInput() {
+  const name=document.getElementById('editName').value.trim();
+  const inf=inferFromName(name);
+  const hint=document.getElementById('editHint');
+  if(inf && name){
+    document.getElementById('editCategory').value = inf.category;
+    document.getElementById('editBaseDays').value = inf.fridge;
+    hint.innerHTML=`💡 推定: ${CAT_LABEL[inf.category]}、冷蔵 <b>${inf.fridge}日</b>`;
+    hint.style.display='block';
+  } else { hint.style.display='none'; }
+}
+function onConfirmEdit() {
+  if(!editCtx) return;
+  const name = document.getElementById('editName').value.trim();
+  if(!name){ showToast('❌ 名前を入力してください'); return; }
+  const cat   = document.getElementById('editCategory').value;
+  const days  = parseInt(document.getElementById('editBaseDays').value)||null;
+  const qw    = document.getElementById('editQtyWhole').value!==''?parseInt(document.getElementById('editQtyWhole').value):null;
+  const qc    = document.getElementById('editQtyCut').value!==''?parseInt(document.getElementById('editQtyCut').value):null;
+  editIngredient(editCtx.rk, editCtx.oldName, name, cat, days, qw, qc);
+  showToast(`✅ 「${name}」を更新しました`);
+  closeEdit(); refreshStockList();
+}
+
+// Manual entry
+let manualPendingList = [];
+function onManualNameInput() {
+  const name=document.getElementById('manualNameInput').value.trim();
+  const inf=inferFromName(name);
+  const hint=document.getElementById('manualInferHint');
+  if(inf && name){
+    document.getElementById('manualCategory').value=inf.category;
+    document.getElementById('manualDaysInput').value=inf.fridge;
+    hint.innerHTML=`💡 推定: ${CAT_LABEL[inf.category]}、冷蔵 <b>${inf.fridge}日</b>`;
+    hint.style.display='block';
+  } else { document.getElementById('manualDaysInput').value=''; hint.style.display='none'; }
+}
+function onAddManual() {
+  const name = document.getElementById('manualNameInput').value.trim();
+  if(!name){ showToast('❌ 食材名を入力してください'); return; }
+  const cat  = document.getElementById('manualCategory').value;
+  const inf  = inferFromName(name);
+  const days = parseInt(document.getElementById('manualDaysInput').value)||( inf?inf.fridge:null);
+  if(!days){ showToast('❌ 日持ち日数を入力してください'); return; }
+  const qty  = Math.max(1, parseInt(document.getElementById('manualQtyInput').value)||1);
+  manualPendingList.push({name, category:cat, baseDays:days, qty, isCut:isCutName(name)});
+  renderManualPending();
+  document.getElementById('manualNameInput').value='';
+  document.getElementById('manualDaysInput').value='';
+  document.getElementById('manualQtyInput').value='1';
+  document.getElementById('manualInferHint').style.display='none';
+  document.getElementById('manualNameInput').focus();
+  updateBtn();
+}
+function renderManualPending() {
+  const c=document.getElementById('manualPendingList');
+  if(manualPendingList.length===0){ c.innerHTML=''; updateBtn(); return; }
+  c.innerHTML=manualPendingList.map((it,idx)=>`
+    <div class="manual-item">
+      <span class="manual-item-name">${esc(it.name)}</span>
+      <span class="manual-item-sub">${CAT_LABEL[it.category]} · 冷蔵${it.baseDays}日 · ${it.qty}個</span>
+      <button class="manual-item-del" onclick="removeManualItem(${idx})">✕</button>
+    </div>`).join('');
+  updateBtn();
+}
+function removeManualItem(idx){ manualPendingList.splice(idx,1); renderManualPending(); }
+function onSaveManual() {
+  if(!manualPendingList.length) return;
+  const dateRaw=document.getElementById('dateInput').value;
+  const storeName=document.getElementById('storeInput').value.trim();
+  if(!dateRaw||!storeName){ showToast('❌ 購入日と店舗名を入力してください'); return; }
+  const rk=`${dateRaw.replace(/-/g,'/')}_${storeName}`;
+  const db=loadDB();
+  if(!db[rk]) db[rk]={image_thumbnail:null,ingredients:[]};
+  for(const it of manualPendingList){
+    db[rk].ingredients.push({
+      name:it.name, category:it.category, base_lifespan:it.baseDays,
+      storage_type:'fridge', qty_whole:it.qty, qty_cut: it.isCut?it.qty:0,
+      status:'available',
+    });
+    // is_cut な名前なら qty_whole を qty_cut に移す
+    if(it.isCut){ db[rk].ingredients.at(-1).qty_whole=0; }
+  }
+  saveDB(db);
+  const count=manualPendingList.length; manualPendingList=[]; renderManualPending();
+  showToast(`✅ ${count}種の食材を登録しました`); refreshStockList();
+}
+
+// Settings
+function openSettings()  { document.getElementById('apiKeyInput').value=getApiKey(); document.getElementById('settingsModal').classList.add('open'); }
+function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
+function toggleApiVis()  {
+  const inp=document.getElementById('apiKeyInput'); const h=inp.type==='password';
+  inp.type=h?'text':'password';
+  document.getElementById('eyeIcon').style.display=h?'none':'';
+  document.getElementById('eyeOffIcon').style.display=h?'':'none';
+}
+
+// Drag & Drop
+const dropZone=document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e=>{e.preventDefault();dropZone.classList.add('drag-over');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const file=e.dataTransfer.files[0]; if(!file?.type.startsWith('image/'))return;
+  selectedFile=file; const url=URL.createObjectURL(file);
+  dropZone.innerHTML=`<img src="${url}" alt="プレビュー">`; dropZone.classList.add('has-image'); updateBtn();
+});
+
+// Modal backdrop
+['settingsModal','editModal'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+});
+
+// Toast / Loading
+let toastTimer;
+function showToast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),3200); }
+function showLoading(msg='処理中...'){ document.getElementById('loadingText').textContent=msg; document.getElementById('loadingOverlay').classList.add('show'); }
+function hideLoading(){ document.getElementById('loadingOverlay').classList.remove('show'); }
+
+// ═══════════════════════════════════════════════════════
+//  初期化・マイグレーション
+// ═══════════════════════════════════════════════════════
+
+// 名前からカテゴリを再推定（otherを中心に修正）
+function reclassifyAllCategories() {
+  const db=loadDB(); let changed=false;
+  for(const rec of Object.values(db)){
+    for(const ing of rec.ingredients||[]){
+      const inf=inferFromName(ing.name);
+      if(inf && inf.category!==ing.category){ ing.category=inf.category; changed=true; }
+    }
+  }
+  if(changed){ saveDB(db); console.log('[reclassify] カテゴリを更新しました'); }
+}
+
+// v1/v2 → v3 マイグレーション
+function migrateOldData() {
+  ['fridge_stock_v1','fridge_stock_v2'].forEach(key=>{
+    const raw=localStorage.getItem(key);
+    if(!raw || localStorage.getItem(key+'_migrated_v3')) return;
+    try {
+      const src=JSON.parse(raw);
+      const dst=loadDB();
+      for(const [rk,rec] of Object.entries(src)){
+        if(dst[rk]) continue;  // 既に存在するキーは上書きしない
+        dst[rk]={image_thumbnail:rec.image_thumbnail||null, ingredients:[]};
+        for(const ing of rec.ingredients||[]){
+          const inf=inferFromName(ing.name||'');
+          const isOldCut = ing.is_cut || false;
+          const base = ing.base_lifespan || ing.original_lifespan_days || ing.lifespan_days || 3;
+          dst[rk].ingredients.push({
+            name:          ing.name||'不明',
+            category:      (inf&&inf.category)||ing.category||'other',
+            base_lifespan: Math.max(1, base),
+            storage_type:  ing.storage_type||'fridge',
+            qty_whole:     isOldCut ? 0 : 1,
+            qty_cut:       isOldCut ? 1 : 0,
+            status:        ing.status||'available',
+          });
+        }
+      }
+      saveDB(dst);
+      localStorage.setItem(key+'_migrated_v3','1');
+      console.log(`[migrate] ${key} → v3 完了`);
+    } catch(e){ console.warn('[migrate] 失敗:',e); }
+  });
+}
+
+(function init(){
+  migrateOldData();
+  reclassifyAllCategories();
+  const t=new Date();
+  document.getElementById('dateInput').value=
+    `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  refreshStockList();
+})();
+</script>
+</body>
+</html>
